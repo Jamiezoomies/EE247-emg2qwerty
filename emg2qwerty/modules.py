@@ -239,7 +239,7 @@ class TDSFullyConnectedBlock(nn.Module):
         x = x + inputs
         return self.layer_norm(x)  # TNC
 
-
+# CNN Encoder
 class TDSConvEncoder(nn.Module):
     """A time depth-separable convolutional encoder composing a sequence
     of `TDSConv2dBlock` and `TDSFullyConnectedBlock` as per
@@ -278,3 +278,125 @@ class TDSConvEncoder(nn.Module):
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         return self.tds_conv_blocks(inputs)  # (T, N, num_features)
+
+# LSTM Encoder
+class TDSLSTMEncoder(nn.Module):
+    def __init__(
+            self,
+            num_features: int,
+            lstm_hidden_size: int = 128,
+            num_lstm_layers: int = 4,
+    ) -> None:
+        super().__init__()
+
+        self.lstm_layers = nn.LSTM(
+            input_size=num_features,
+            hidden_size=lstm_hidden_size,
+            num_layers=num_lstm_layers,
+            batch_first=False,
+            bidirectional=True,
+        )
+
+        self.fc_block = TDSFullyConnectedBlock(lstm_hidden_size * 2)
+        self.out_layer = nn.Linear(lstm_hidden_size * 2, num_features)
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        x, _ = self.lstm_layers(inputs)
+        x = self.fc_block(x)
+        x = self.out_layer(x)
+        return x  # (T, N, num_features)
+
+# GRU Encoder
+class TDSGRUEncoder(nn.Module):
+    def __init__(
+            self,
+            num_features: int,
+            gru_hidden_size: int = 128,
+            num_gru_layers: int = 4,
+    ) -> None:
+        super().__init__()
+
+        self.gru_layers = nn.GRU(
+            input_size=num_features,
+            hidden_size=gru_hidden_size,
+            num_layers=num_gru_layers,
+            batch_first=False,
+            bidirectional=True,
+        )
+
+        self.fc_block = TDSFullyConnectedBlock(gru_hidden_size * 2)
+        self.out_layer = nn.Linear(gru_hidden_size * 2, num_features)
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        x, _ = self.gru_layers(inputs)
+        x = self.fc_block(x)
+        x = self.out_layer(x)
+        return x  # (T, N, num_features)
+
+# RNN Encoder
+class TDSRNNEncoder(nn.Module):
+    def __init__(
+            self,
+            num_features: int,
+            rnn_hidden_size: int = 512,
+            num_rnn_layers: int = 12,
+    ) -> None:
+        super().__init__()
+
+        self.rnn_layers = nn.RNN(
+            input_size=num_features,
+            hidden_size=rnn_hidden_size,
+            num_layers=num_rnn_layers,
+            batch_first=False,
+            bidirectional=True,
+        )
+
+        self.fc_block = TDSFullyConnectedBlock(rnn_hidden_size * 2)
+        self.out_layer = nn.Linear(rnn_hidden_size * 2, num_features)
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        x, _ = self.rnn_layers(inputs)
+        x = self.fc_block(x)
+        x = self.out_layer(x)
+        return x  # (T, N, num_features)
+
+
+    def __init__(
+        self,
+        num_features: int,
+        tf_hidden_size: int = 512,
+        num_transformer_layers: int = 6,
+        num_heads: int = 8,
+    ) -> None:
+        super().__init__()
+
+        # Linear Projection (input dim -> transformer_hidden_size)
+        self.input_proj = nn.Linear(num_features, tf_hidden_size)
+
+        # Transformer Encoder Layer
+        encoder_layer = nn.Transformer(
+            d_model=tf_hidden_size,  # Transformer hidden size
+            nhead=num_heads,
+            dim_feedforward=tf_hidden_size * 4,  # Standard FFN size
+            batch_first=False,  # Transformer expects (T, B, F) input
+        )
+
+        # Transformer Encoder
+        self.transformer_encoder = nn.TransformerEncoder(
+            encoder_layer, num_layers=num_transformer_layers
+        )
+
+        # Fully Connected Layer (Same as RNN version)
+        self.fc_block = TDSFullyConnectedBlock(tf_hidden_size)
+        self.out_layer = nn.Linear(tf_hidden_size, num_features)  # Output projection
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        """
+        Inputs: (T, B, num_features)  # (Time, Batch, Features)
+        Transformer expects (T, B, F) format.
+        """
+        x = self.input_proj(inputs)  # Input projection to transformer_hidden_size
+        x = self.transformer_encoder(x)  # Transformer processing
+        x = self.fc_block(x)  # Fully connected block
+        x = self.out_layer(x)  # Output layer
+        return x  # (T, B, num_features)
