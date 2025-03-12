@@ -28,7 +28,6 @@ from emg2qwerty.modules import (
     TDSLSTMEncoder,
     TDSGRUEncoder,
     TDSRNNEncoder,
-    TDSTransformerEncoder,
 )
 from emg2qwerty.transforms import Transform
 
