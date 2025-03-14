@@ -1,0 +1,329 @@
+2025-03-13 23:09:47.529719: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2025-03-13 23:09:47.548024: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:477] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+E0000 00:00:1741907387.570065   26529 cuda_dnn.cc:8310] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+E0000 00:00:1741907387.576761   26529 cuda_blas.cc:1418] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+2025-03-13 23:09:47.598928: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+[2025-03-13 23:09:52,249][__main__][INFO] - 
+Config:
+user: single_user
+dataset:
+  train:
+  - user: 89335547
+    session: 2021-06-03-1622765527-keystrokes-dca-study@1-0efbe614-9ae6-4131-9192-4398359b4f5f
+  - user: 89335547
+    session: 2021-06-02-1622681518-keystrokes-dca-study@1-0efbe614-9ae6-4131-9192-4398359b4f5f
+  - user: 89335547
+    session: 2021-06-04-1622863166-keystrokes-dca-study@1-0efbe614-9ae6-4131-9192-4398359b4f5f
+  - user: 89335547
+    session: 2021-07-22-1627003020-keystrokes-dca-study@1-0efbe614-9ae6-4131-9192-4398359b4f5f
+  - user: 89335547
+    session: 2021-07-21-1626916256-keystrokes-dca-study@1-0efbe614-9ae6-4131-9192-4398359b4f5f
+  - user: 89335547
+    session: 2021-07-22-1627004019-keystrokes-dca-study@1-0efbe614-9ae6-4131-9192-4398359b4f5f
+  - user: 89335547
+    session: 2021-06-05-1622885888-keystrokes-dca-study@1-0efbe614-9ae6-4131-9192-4398359b4f5f
+  - user: 89335547
+    session: 2021-06-02-1622679967-keystrokes-dca-study@1-0efbe614-9ae6-4131-9192-4398359b4f5f
+  - user: 89335547
+    session: 2021-06-03-1622764398-keystrokes-dca-study@1-0efbe614-9ae6-4131-9192-4398359b4f5f
+  - user: 89335547
+    session: 2021-07-21-1626917264-keystrokes-dca-study@1-0efbe614-9ae6-4131-9192-4398359b4f5f
+  - user: 89335547
+    session: 2021-06-05-1622889105-keystrokes-dca-study@1-0efbe614-9ae6-4131-9192-4398359b4f5f
+  - user: 89335547
+    session: 2021-06-03-1622766673-keystrokes-dca-study@1-0efbe614-9ae6-4131-9192-4398359b4f5f
+  - user: 89335547
+    session: 2021-06-04-1622861066-keystrokes-dca-study@1-0efbe614-9ae6-4131-9192-4398359b4f5f
+  - user: 89335547
+    session: 2021-07-22-1627001995-keystrokes-dca-study@1-0efbe614-9ae6-4131-9192-4398359b4f5f
+  - user: 89335547
+    session: 2021-06-05-1622884635-keystrokes-dca-study@1-0efbe614-9ae6-4131-9192-4398359b4f5f
+  - user: 89335547
+    session: 2021-07-21-1626915176-keystrokes-dca-study@1-0efbe614-9ae6-4131-9192-4398359b4f5f
+  val:
+  - user: 89335547
+    session: 2021-06-04-1622862148-keystrokes-dca-study@1-0efbe614-9ae6-4131-9192-4398359b4f5f
+  test:
+  - user: 89335547
+    session: 2021-06-02-1622682789-keystrokes-dca-study@1-0efbe614-9ae6-4131-9192-4398359b4f5f
+  root: ${hydra:runtime.cwd}/data
+to_tensor:
+  _target_: emg2qwerty.transforms.ToTensor
+  fields:
+  - emg_left
+  - emg_right
+band_rotation:
+  _target_: emg2qwerty.transforms.ForEach
+  transform:
+    _target_: emg2qwerty.transforms.RandomBandRotation
+    offsets:
+    - -1
+    - 0
+    - 1
+temporal_jitter:
+  _target_: emg2qwerty.transforms.TemporalAlignmentJitter
+  max_offset: 120
+logspec:
+  _target_: emg2qwerty.transforms.LogSpectrogram
+  n_fft: 64
+  hop_length: 16
+specaug:
+  _target_: emg2qwerty.transforms.SpecAugment
+  n_time_masks: 3
+  time_mask_param: 25
+  n_freq_masks: 2
+  freq_mask_param: 4
+transforms:
+  train:
+  - ${to_tensor}
+  - ${band_rotation}
+  - ${temporal_jitter}
+  - ${logspec}
+  - ${specaug}
+  val:
+  - ${to_tensor}
+  - ${logspec}
+  test: ${transforms.val}
+module:
+  _target_: emg2qwerty.lightning.TDSConvLSTMModule
+  in_features: 528
+  mlp_features:
+  - 384
+  block_channels:
+  - 24
+  - 24
+  - 24
+  - 24
+  kernel_width: 32
+datamodule:
+  _target_: emg2qwerty.lightning.WindowedEMGDataModule
+  window_length: 10000
+  padding:
+  - 1800
+  - 200
+optimizer:
+  _target_: torch.optim.Adam
+  lr: 0.001
+lr_scheduler:
+  scheduler:
+    _target_: pl_bolts.optimizers.lr_scheduler.LinearWarmupCosineAnnealingLR
+    warmup_epochs: 10
+    max_epochs: ${trainer.max_epochs}
+    warmup_start_lr: 1.0e-08
+    eta_min: 1.0e-06
+  interval: epoch
+decoder:
+  _target_: emg2qwerty.decoder.CTCGreedyDecoder
+seed: 1501
+batch_size: 32
+num_workers: 4
+train: true
+checkpoint: null
+monitor_metric: val/CER
+monitor_mode: min
+trainer:
+  accelerator: gpu
+  devices: 1
+  num_nodes: 1
+  max_epochs: 20
+  default_root_dir: ${hydra:runtime.output_dir}
+callbacks:
+- _target_: pytorch_lightning.callbacks.LearningRateMonitor
+- _target_: pytorch_lightning.callbacks.ModelCheckpoint
+  dirpath: ${hydra:runtime.output_dir}/checkpoints
+  monitor: ${monitor_metric}
+  mode: ${monitor_mode}
+  save_last: true
+  verbose: true
+
+Global seed set to 1501
+[2025-03-13 23:09:52,253][__main__][INFO] - Instantiating LightningModule {'_target_': 'emg2qwerty.lightning.TDSConvLSTMModule', 'in_features': 528, 'mlp_features': [384], 'block_channels': [24, 24, 24, 24], 'kernel_width': 32}
+[2025-03-13 23:09:52,358][__main__][INFO] - Instantiating LightningDataModule {'_target_': 'emg2qwerty.lightning.WindowedEMGDataModule', 'window_length': 10000, 'padding': [1800, 200]}
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+IPU available: False, using: 0 IPUs
+HPU available: False, using: 0 HPUs
+Missing logger folder: /content/drive/MyDrive/projects/emg2qwerty-fresh/logs/2025-03-13/23-09-52/lightning_logs
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+/usr/local/lib/python3.11/dist-packages/pl_bolts/__init__.py:11: FutureWarning: In the future `np.object` will be defined as the corresponding NumPy scalar.
+  if not hasattr(numpy, tp_name):
+/usr/local/lib/python3.11/dist-packages/pl_bolts/__init__.py:11: FutureWarning: In the future `np.bool` will be defined as the corresponding NumPy scalar.
+  if not hasattr(numpy, tp_name):
+/usr/local/lib/python3.11/dist-packages/pl_bolts/models/self_supervised/amdim/amdim_module.py:34: UnderReviewWarning: The feature generate_power_seq is currently marked under review. The compatibility with other Lightning projects is not guaranteed and API may change at any time. The API and functionality may change without warning in future releases. More details: https://lightning-bolts.readthedocs.io/en/latest/stability.html
+  "lr_options": generate_power_seq(LEARNING_RATE_CIFAR, 11),
+/usr/local/lib/python3.11/dist-packages/pl_bolts/models/self_supervised/amdim/amdim_module.py:92: UnderReviewWarning: The feature FeatureMapContrastiveTask is currently marked under review. The compatibility with other Lightning projects is not guaranteed and API may change at any time. The API and functionality may change without warning in future releases. More details: https://lightning-bolts.readthedocs.io/en/latest/stability.html
+  contrastive_task: Union[FeatureMapContrastiveTask] = FeatureMapContrastiveTask("01, 02, 11"),
+/usr/local/lib/python3.11/dist-packages/pl_bolts/losses/self_supervised_learning.py:228: UnderReviewWarning: The feature AmdimNCELoss is currently marked under review. The compatibility with other Lightning projects is not guaranteed and API may change at any time. The API and functionality may change without warning in future releases. More details: https://lightning-bolts.readthedocs.io/en/latest/stability.html
+  self.nce_loss = AmdimNCELoss(tclip)
+/usr/local/lib/python3.11/dist-packages/hydra/_internal/instantiate/_instantiate2.py:92: UnderReviewWarning: The feature LinearWarmupCosineAnnealingLR is currently marked under review. The compatibility with other Lightning projects is not guaranteed and API may change at any time. The API and functionality may change without warning in future releases. More details: https://lightning-bolts.readthedocs.io/en/latest/stability.html
+  return _target_(*args, **kwargs)
+
+  | Name     | Type       | Params
+----------------------------------------
+0 | model    | Sequential | 8.3 M 
+1 | ctc_loss | CTCLoss    | 0     
+2 | metrics  | ModuleDict | 0     
+----------------------------------------
+8.3 M     Trainable params
+0         Non-trainable params
+8.3 M     Total params
+33.010    Total estimated model params size (MB)
+Epoch 0:  78% 80/102 [00:22<00:06,  3.56it/s, loss=137, v_num=0]
+Validation: 0it [00:00, ?it/s]
+Validation:   0% 0/6 [00:00<?, ?it/s]
+Epoch 0:  98% 100/102 [00:27<00:00,  3.63it/s, loss=137, v_num=0]
+Epoch 0: 100% 102/102 [00:28<00:00,  3.64it/s, loss=123, v_num=0]
+Epoch 0: 100% 102/102 [00:28<00:00,  3.64it/s, loss=123, v_num=0]Epoch 0, global step 96: 'val/CER' reached 97.10918 (best 97.10918), saving model to '/content/drive/MyDrive/projects/emg2qwerty-fresh/logs/2025-03-13/23-09-52/checkpoints/epoch=0-step=96.ckpt' as top 1
+Epoch 1:  78% 80/102 [00:19<00:05,  4.08it/s, loss=3.9, v_num=0] 
+Validation: 0it [00:00, ?it/s]
+Validation:   0% 0/6 [00:00<?, ?it/s]
+Epoch 1:  98% 100/102 [00:24<00:00,  4.06it/s, loss=3.9, v_num=0]
+Epoch 1: 100% 102/102 [00:25<00:00,  4.06it/s, loss=3.71, v_num=0]
+Epoch 1: 100% 102/102 [00:25<00:00,  4.05it/s, loss=3.71, v_num=0]Epoch 1, global step 192: 'val/CER' was not in top 1
+Epoch 2:  78% 80/102 [00:19<00:05,  4.08it/s, loss=3.34, v_num=0]
+Validation: 0it [00:00, ?it/s]
+Validation:   0% 0/6 [00:00<?, ?it/s]
+Epoch 2:  98% 100/102 [00:24<00:00,  4.07it/s, loss=3.34, v_num=0]
+Epoch 2: 100% 102/102 [00:25<00:00,  4.07it/s, loss=3.45, v_num=0]
+Epoch 2: 100% 102/102 [00:25<00:00,  4.07it/s, loss=3.45, v_num=0]Epoch 2, global step 288: 'val/CER' was not in top 1
+Epoch 3:  78% 80/102 [00:19<00:05,  4.11it/s, loss=3.31, v_num=0]
+Validation: 0it [00:00, ?it/s]
+Validation:   0% 0/6 [00:00<?, ?it/s]
+Epoch 3:  98% 100/102 [00:24<00:00,  4.14it/s, loss=3.31, v_num=0]
+Epoch 3: 100% 102/102 [00:24<00:00,  4.13it/s, loss=3.37, v_num=0]
+Epoch 3: 100% 102/102 [00:24<00:00,  4.13it/s, loss=3.37, v_num=0]Epoch 3, global step 384: 'val/CER' was not in top 1
+Epoch 4:  78% 80/102 [00:19<00:05,  4.10it/s, loss=3.55, v_num=0]
+Validation: 0it [00:00, ?it/s]
+Validation:   0% 0/6 [00:00<?, ?it/s]
+Epoch 4:  98% 100/102 [00:24<00:00,  4.13it/s, loss=3.55, v_num=0]
+Epoch 4: 100% 102/102 [00:24<00:00,  4.12it/s, loss=3.38, v_num=0]
+Epoch 4: 100% 102/102 [00:24<00:00,  4.12it/s, loss=3.38, v_num=0]Epoch 4, global step 480: 'val/CER' was not in top 1
+Epoch 5:  78% 80/102 [00:19<00:05,  4.05it/s, loss=3.31, v_num=0]
+Validation: 0it [00:00, ?it/s]
+Validation:   0% 0/6 [00:00<?, ?it/s]
+Epoch 5:  98% 100/102 [00:24<00:00,  4.09it/s, loss=3.31, v_num=0]
+Epoch 5: 100% 102/102 [00:24<00:00,  4.10it/s, loss=3.44, v_num=0]
+Epoch 5: 100% 102/102 [00:24<00:00,  4.10it/s, loss=3.44, v_num=0]Epoch 5, global step 576: 'val/CER' was not in top 1
+Epoch 6:  78% 80/102 [00:19<00:05,  4.15it/s, loss=3.43, v_num=0]
+Validation: 0it [00:00, ?it/s]
+Validation:   0% 0/6 [00:00<?, ?it/s]
+Epoch 6:  98% 100/102 [00:24<00:00,  4.16it/s, loss=3.43, v_num=0]
+Epoch 6: 100% 102/102 [00:24<00:00,  4.17it/s, loss=3.34, v_num=0]
+Epoch 6: 100% 102/102 [00:24<00:00,  4.17it/s, loss=3.34, v_num=0]Epoch 6, global step 672: 'val/CER' was not in top 1
+Epoch 7:  78% 80/102 [00:19<00:05,  4.11it/s, loss=3.23, v_num=0]
+Validation: 0it [00:00, ?it/s]
+Validation:   0% 0/6 [00:00<?, ?it/s]
+Epoch 7:  98% 100/102 [00:24<00:00,  4.10it/s, loss=3.23, v_num=0]
+Epoch 7: 100% 102/102 [00:24<00:00,  4.10it/s, loss=3.22, v_num=0]
+Epoch 7: 100% 102/102 [00:24<00:00,  4.10it/s, loss=3.22, v_num=0]Epoch 7, global step 768: 'val/CER' was not in top 1
+Epoch 8:  78% 80/102 [00:19<00:05,  4.14it/s, loss=3.28, v_num=0]
+Validation: 0it [00:00, ?it/s]
+Validation:   0% 0/6 [00:00<?, ?it/s]
+Epoch 8:  98% 100/102 [00:24<00:00,  4.13it/s, loss=3.28, v_num=0]
+Epoch 8: 100% 102/102 [00:24<00:00,  4.12it/s, loss=3.24, v_num=0]
+Epoch 8: 100% 102/102 [00:24<00:00,  4.12it/s, loss=3.24, v_num=0]Epoch 8, global step 864: 'val/CER' was not in top 1
+Epoch 9:  78% 80/102 [00:19<00:05,  4.16it/s, loss=3.16, v_num=0]
+Validation: 0it [00:00, ?it/s]
+Validation:   0% 0/6 [00:00<?, ?it/s]
+Epoch 9:  98% 100/102 [00:24<00:00,  4.14it/s, loss=3.16, v_num=0]
+Epoch 9: 100% 102/102 [00:24<00:00,  4.15it/s, loss=3.25, v_num=0]
+Epoch 9: 100% 102/102 [00:24<00:00,  4.15it/s, loss=3.25, v_num=0]Epoch 9, global step 960: 'val/CER' was not in top 1
+Epoch 10:  78% 80/102 [00:19<00:05,  4.14it/s, loss=3.14, v_num=0]
+Validation: 0it [00:00, ?it/s]
+Validation:   0% 0/6 [00:00<?, ?it/s]
+Epoch 10:  98% 100/102 [00:24<00:00,  4.13it/s, loss=3.14, v_num=0]
+Epoch 10: 100% 102/102 [00:24<00:00,  4.12it/s, loss=3.13, v_num=0]
+Epoch 10: 100% 102/102 [00:24<00:00,  4.12it/s, loss=3.13, v_num=0]Epoch 10, global step 1056: 'val/CER' was not in top 1
+Epoch 11:  78% 80/102 [00:19<00:05,  4.17it/s, loss=3.11, v_num=0]
+Validation: 0it [00:00, ?it/s]
+Validation:   0% 0/6 [00:00<?, ?it/s]
+Epoch 11:  98% 100/102 [00:24<00:00,  4.14it/s, loss=3.11, v_num=0]
+Epoch 11: 100% 102/102 [00:24<00:00,  4.15it/s, loss=3.12, v_num=0]
+Epoch 11: 100% 102/102 [00:24<00:00,  4.15it/s, loss=3.12, v_num=0]Epoch 11, global step 1152: 'val/CER' was not in top 1
+Epoch 12:  78% 80/102 [00:19<00:05,  4.08it/s, loss=3.05, v_num=0]
+Validation: 0it [00:00, ?it/s]
+Validation:   0% 0/6 [00:00<?, ?it/s]
+Epoch 12:  98% 100/102 [00:24<00:00,  4.10it/s, loss=3.05, v_num=0]
+Epoch 12: 100% 102/102 [00:24<00:00,  4.10it/s, loss=3.04, v_num=0]
+Epoch 12: 100% 102/102 [00:24<00:00,  4.10it/s, loss=3.04, v_num=0]Epoch 12, global step 1248: 'val/CER' was not in top 1
+Epoch 13:  78% 80/102 [00:19<00:05,  4.14it/s, loss=3.1, v_num=0]
+Validation: 0it [00:00, ?it/s]
+Validation:   0% 0/6 [00:00<?, ?it/s]
+Epoch 13:  98% 100/102 [00:24<00:00,  4.16it/s, loss=3.1, v_num=0]
+Epoch 13: 100% 102/102 [00:24<00:00,  4.16it/s, loss=3.02, v_num=0]
+Epoch 13: 100% 102/102 [00:24<00:00,  4.16it/s, loss=3.02, v_num=0]Epoch 13, global step 1344: 'val/CER' was not in top 1
+Epoch 14:  78% 80/102 [00:19<00:05,  4.14it/s, loss=2.99, v_num=0]
+Validation: 0it [00:00, ?it/s]
+Validation:   0% 0/6 [00:00<?, ?it/s]
+Epoch 14:  98% 100/102 [00:24<00:00,  4.15it/s, loss=2.99, v_num=0]
+Epoch 14: 100% 102/102 [00:24<00:00,  4.14it/s, loss=2.95, v_num=0]
+Epoch 14: 100% 102/102 [00:24<00:00,  4.14it/s, loss=2.95, v_num=0]Epoch 14, global step 1440: 'val/CER' was not in top 1
+Epoch 15:  78% 80/102 [00:19<00:05,  4.15it/s, loss=3.03, v_num=0]
+Validation: 0it [00:00, ?it/s]
+Validation:   0% 0/6 [00:00<?, ?it/s]
+Epoch 15:  98% 100/102 [00:24<00:00,  4.15it/s, loss=3.03, v_num=0]
+Epoch 15: 100% 102/102 [00:24<00:00,  4.17it/s, loss=2.91, v_num=0]
+Epoch 15: 100% 102/102 [00:24<00:00,  4.17it/s, loss=2.91, v_num=0]Epoch 15, global step 1536: 'val/CER' was not in top 1
+Epoch 16:  78% 80/102 [00:19<00:05,  4.15it/s, loss=2.77, v_num=0]
+Validation: 0it [00:00, ?it/s]
+Validation:   0% 0/6 [00:00<?, ?it/s]
+Epoch 16:  98% 100/102 [00:24<00:00,  4.13it/s, loss=2.77, v_num=0]
+Epoch 16: 100% 102/102 [00:24<00:00,  4.13it/s, loss=2.82, v_num=0]
+Epoch 16: 100% 102/102 [00:24<00:00,  4.13it/s, loss=2.82, v_num=0]Epoch 16, global step 1632: 'val/CER' was not in top 1
+Epoch 17:  78% 80/102 [00:19<00:05,  4.02it/s, loss=2.71, v_num=0]
+Validation: 0it [00:00, ?it/s]
+Validation:   0% 0/6 [00:00<?, ?it/s]
+Epoch 17:  98% 100/102 [00:24<00:00,  4.04it/s, loss=2.71, v_num=0]
+Epoch 17: 100% 102/102 [00:25<00:00,  4.04it/s, loss=2.71, v_num=0]
+Epoch 17: 100% 102/102 [00:25<00:00,  4.04it/s, loss=2.71, v_num=0]Epoch 17, global step 1728: 'val/CER' was not in top 1
+Epoch 18:  78% 80/102 [00:19<00:05,  4.09it/s, loss=2.63, v_num=0]
+Validation: 0it [00:00, ?it/s]
+Validation:   0% 0/6 [00:00<?, ?it/s]
+Epoch 18:  98% 100/102 [00:24<00:00,  4.06it/s, loss=2.63, v_num=0]
+Epoch 18: 100% 102/102 [00:25<00:00,  4.06it/s, loss=2.72, v_num=0]
+Epoch 18: 100% 102/102 [00:25<00:00,  4.06it/s, loss=2.72, v_num=0]Epoch 18, global step 1824: 'val/CER' was not in top 1
+Epoch 19:  78% 80/102 [00:19<00:05,  4.05it/s, loss=2.58, v_num=0]
+Validation: 0it [00:00, ?it/s]
+Validation:   0% 0/6 [00:00<?, ?it/s]
+Epoch 19:  98% 100/102 [00:24<00:00,  4.06it/s, loss=2.58, v_num=0]
+Epoch 19: 100% 102/102 [00:25<00:00,  4.05it/s, loss=2.6, v_num=0] 
+Epoch 19: 100% 102/102 [00:25<00:00,  4.05it/s, loss=2.6, v_num=0]Epoch 19, global step 1920: 'val/CER' was not in top 1
+`Trainer.fit` stopped: `max_epochs=20` reached.
+Epoch 19: 100% 102/102 [00:25<00:00,  3.99it/s, loss=2.6, v_num=0]
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+Validation DataLoader 0: 100% 6/6 [00:00<00:00,  7.12it/s]
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  Runningstage.validating  ┃                           ┃
+┃          metric           ┃       DataLoader 0        ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│          val/CER          │     97.10918426513672     │
+│          val/DER          │            0.0            │
+│          val/IER          │     96.24193572998047     │
+│          val/SER          │    0.8672448396682739     │
+│         val/loss          │     96.0584487915039      │
+└───────────────────────────┴───────────────────────────┘
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+Testing DataLoader 0: 100% 1/1 [00:06<00:00,  6.53s/it]
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃   Runningstage.testing    ┃                           ┃
+┃          metric           ┃       DataLoader 0        ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│         test/CER          │     99.97838592529297     │
+│         test/DER          │            0.0            │
+│         test/IER          │     99.97838592529297     │
+│         test/SER          │            0.0            │
+│         test/loss         │     114.0105209350586     │
+└───────────────────────────┴───────────────────────────┘
+{'val_metrics': [{'val/loss': 96.0584487915039,
+                  'val/CER': 97.10918426513672,
+                  'val/IER': 96.24193572998047,
+                  'val/DER': 0.0,
+                  'val/SER': 0.8672448396682739}],
+ 'test_metrics': [{'test/loss': 114.0105209350586,
+                   'test/CER': 99.97838592529297,
+                   'test/IER': 99.97838592529297,
+                   'test/DER': 0.0,
+                   'test/SER': 0.0}],
+ 'best_checkpoint': '/content/drive/MyDrive/projects/emg2qwerty-fresh/logs/2025-03-13/23-09-52/checkpoints/epoch=0-step=96.ckpt'}
