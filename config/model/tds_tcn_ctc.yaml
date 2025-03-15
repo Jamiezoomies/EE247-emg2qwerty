@@ -1,0 +1,13 @@
+# @package _global_
+module:
+  _target_: emg2qwerty.lightning.TDSTCNModule  # Updated to use TCN
+  in_features: 528  # freq * channels = (n_fft // 2 + 1) * 16
+  mlp_features: [384]  # MLP features for feature extraction
+  block_channels: [24, 24, 24, 24]  # Not used in TCN, but kept for compatibility
+  kernel_width: 4  # Kernel size for TCN
+
+
+datamodule:
+  _target_: emg2qwerty.lightning.WindowedEMGDataModule
+  window_length: 8000  # 4 sec windows for 2kHz EMG
+  padding: [1800, 200]  # 900ms past context, 100ms future context

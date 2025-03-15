@@ -400,3 +400,83 @@ class TDSRNNEncoder(nn.Module):
         x = self.fc_block(x)  # Fully connected block
         x = self.out_layer(x)  # Output layer
         return x  # (T, B, num_features)
+
+
+class TemporalBlock(nn.Module):
+    """
+    A single residual block in the TCN.
+    """
+    def __init__(self, in_channels, out_channels, kernel_size, stride, dilation, dropout=0.2):
+        super(TemporalBlock, self).__init__()
+        # First dilated causal convolution
+        padding = (kernel_size - 1) * dilation
+        self.conv1 = nn.Conv1d(
+            in_channels, out_channels, kernel_size,
+            stride=stride, padding=padding, dilation=dilation
+        )
+        self.bn1 = nn.BatchNorm1d(out_channels)
+        self.relu1 = nn.ReLU()
+        self.dropout1 = nn.Dropout(dropout)
+
+        # Second dilated causal convolution
+        self.conv2 = nn.Conv1d(
+            out_channels, out_channels, kernel_size,
+            stride=stride, padding=padding, dilation=dilation
+        )
+        self.bn2 = nn.BatchNorm1d(out_channels)
+        self.relu2 = nn.ReLU()
+        self.dropout2 = nn.Dropout(dropout)
+
+        # Downsample input if necessary
+        self.downsample = nn.Conv1d(in_channels, out_channels, 1) if in_channels != out_channels else None
+        self.relu = nn.ReLU()
+
+    def forward(self, x):
+        residual = x
+        # First convolution
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu1(out)
+        out = self.dropout1(out)
+
+        # Second convolution
+        out = self.conv2(out)
+        out = self.bn2(out)
+        out = self.relu2(out)
+        out = self.dropout2(out)
+
+        # Downsample residual if needed
+        if self.downsample is not None:
+            residual = self.downsample(x)
+
+        # Trim output to match input length
+        if out.shape[-1] != residual.shape[-1]:
+            out = out[:, :, :residual.shape[-1]]
+
+        # Add residual and apply ReLU
+        out += residual
+        return self.relu(out)
+
+
+class TDSTCNEncoder(nn.Module):
+    """
+    TCN Encoder for EMG data.
+    """
+    def __init__(self, num_features, tcn_hidden_size, num_tcn_layers, kernel_size=3, dropout=0.2):
+        super(TDSTCNEncoder, self).__init__()
+        self.layers = nn.ModuleList()
+        num_channels = [tcn_hidden_size] * num_tcn_layers
+
+        for i in range(num_tcn_layers):
+            dilation_size = 2 ** i  # Exponential dilation
+            in_channels = num_features if i == 0 else num_channels[i - 1]
+            self.layers.append(
+                TemporalBlock(in_channels, num_channels[i], kernel_size, stride=1, dilation=dilation_size, dropout=dropout)
+            )
+
+    def forward(self, x):
+        x = x.permute(1, 2, 0)  # (N, num_features, T)
+        for layer in self.layers:
+            x = layer(x)
+        x = x.permute(2, 0, 1)  # (T, N, tcn_hidden_size)
+        return x
